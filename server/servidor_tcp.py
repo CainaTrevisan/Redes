@@ -1,6 +1,8 @@
 import socket
 import sys
 import json
+import threading
+import thread
 
 # Modo de Uso
 if len(sys.argv) != 3:
@@ -22,9 +24,9 @@ sock.bind( (IP, PORT) )
 # Listen incoming connection
 sock.listen(BACKLOG)
 
-while True:
-    connection, client_address = sock.accept()    
-
+lock = threading.Lock()
+    
+def listen_socket(connection, lock):
     try:
         while True:
             data = connection.recv(BUFSIZE)
@@ -37,13 +39,19 @@ while True:
                 print("File: %s\nMessage:" % (FILE) )
                 print(message)
 
+                lock.acquire()
                 f = open( FILE, "w+")
                 print ( f.read() )
                 f.write(message)
                 f.seek(0)
                 new_data = f.read().encode()
-                f.close()           
+                f.close()     
+                lock.release()    
      
                 connection.send(new_data)
     finally:
         connection.close()
+
+while True:
+    connection, client_address = sock.accept()    
+    thread.start_new_thread(listen_socket, (connection, lock) ) 
